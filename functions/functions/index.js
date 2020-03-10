@@ -75,6 +75,14 @@ app.post('/scream', (request, response) => {
         });
 });
 
+const isEmpty = (string) => {
+    return string.trim() === '';
+}
+
+const isEmail = (email) => {
+    const regEx = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])/;
+    return email.match(regEx);
+}
 
 //Users
 app.post('/signup', (request, response) => {
@@ -85,10 +93,27 @@ app.post('/signup', (request, response) => {
         handle: request.body.handle,
     }
 
+    let errors = {};
+
+    if (isEmpty(newUser.email)) {
+        errors.email = 'Must not be empty';
+    } else if (!isEmail(newUser.email)) {
+        errors.email = 'Must be a valid email address';
+    }
+
+    if (isEmpty(newUser.password)) errors.password = 'Must not be empty';
+    if (newUser.password !== newUser.confirmPassword) errors.confirmPassword = 'Passwords must match';
+    if (isEmpty(newUser.handle)) errors.handle = 'Must not be empty';
+
+    if (Object.keys(errors).length > 0) {
+        return response.status(400).json(errors);
+    }
+
     let uToken, userId;
     //TODO validate data
     db.doc(`/users/${newUser.handle}`).get()
         .then(doc => {
+            //Validate if user exists, return error if or create a new one  
             if (doc.exists) {
                 return response.status(400).json({ handle: 'this handle is already taken' })
             }
@@ -97,10 +122,12 @@ app.post('/signup', (request, response) => {
             }
         })
         .then(data => {
+            //get user Info
             userId = data.user.uid;
             return data.user.getIdToken();
         })
         .then(token => {
+            //create user credentials
             uToken = token;
             const userCredentials = {
                 handle: newUser.handle,
