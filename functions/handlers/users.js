@@ -1,7 +1,7 @@
 const { db, admin } = require('../util/admin');
 const firebase = require('firebase');
 const config = require('../util/config');
-const { validateSignupData, validateLoginData } = require('../util/validators');
+const { validateSignupData, validateLoginData, reduceUserDetails } = require('../util/validators');
 
 firebase.initializeApp(config);
 
@@ -142,4 +142,41 @@ exports.uploadImage = (request, response) => {
     });
 
     busboy.end(request.rawBody);
+}
+
+/* Get own user details */
+exports.addUserDetails = (request, response) => {
+    let userDetails = reduceUserDetails(request.body);
+    db.doc(`/users/${request.user.handle}`).update(userDetails)
+        .then(() => {
+            return response.json({ message: 'Details added successfully' });
+        }).catch(error => {
+            console.error(error);
+            return response.status(500).json({ error: error.code });
+        })
+}
+
+/* Get a user details */
+exports.getAuthenticatedUser = (request, response) => {
+    let userData = {};
+
+    db.doc(`/users/${request.user.handle}`)
+        .get()
+        .then(doc => {
+            if (doc.exists) {
+                userData.credentials = doc.data();
+                return db.collection('likes').where('userHandle', '==', request.user.handle).get();
+            }
+        })
+        .then(data => {
+            userData.likes = [];
+            data.forEach(doc => {
+                userData.likes.push(doc.data());
+            });
+            return response.json(userData);
+        })
+        .catch(error => {
+            console.error(error);
+            return response.response(500).json({ error: error.code });
+        })
 }
