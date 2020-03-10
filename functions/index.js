@@ -55,11 +55,44 @@ app.get('/screams', (request, response) => {
         });
 });
 
+/* Middleware */
+const FBAuth = (request, response, next) => {
+    let idToken;
+    if (request.headers.authorization && request.headers.authorization.startsWith('Bearer ')) {
+        //Get token from headers
+        idToken = request.headers.authorization.split('Bearer ')[1];
+    }
+    else {
+        console.error('No token found');
 
-app.post('/scream', (request, response) => {
+        return response.status(403).json({ error: 'Unauthorized' });
+    }
+
+    //Verify if token is still valid on FB
+    admin.auth().verifyIdToken(idToken)
+        .then(decodedToken => {
+            request.user = decodedToken;
+
+            return db.collection('users')
+                .where('userId', '==', request.user.uid)
+                .limit(1)
+                .get()
+        })
+        .then(data => {
+            //Add the handle in request
+            request.user.handle = data.docs[0].data().handle;
+            return next();
+        })
+        .catch(error => {
+            console.error(error);
+            return response.status(403).json(error)
+        });
+}
+
+app.post('/scream', FBAuth, (request, response) => {
     const newScream = {
         body: request.body.body,
-        userHandle: request.body.userHandle,
+        userHandle: request.user.handle,
         createdAt: new Date().toISOString(),
     }
 
@@ -76,12 +109,12 @@ app.post('/scream', (request, response) => {
 });
 
 const isEmpty = (string) => {
-    return string.trim() === '';
+    return string && string.trim() === '';
 }
 
 const isEmail = (email) => {
     const regEx = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])/;
-    return email.match(regEx);
+    return email && email.match(regEx);
 }
 
 //Users
@@ -109,7 +142,7 @@ app.post('/signup', (request, response) => {
         return response.status(400).json(errors);
     }
 
-    let uToken, userId;
+    let token, userId;
     //TODO validate data
     db.doc(`/users/${newUser.handle}`).get()
         .then(doc => {
@@ -126,9 +159,9 @@ app.post('/signup', (request, response) => {
             userId = data.user.uid;
             return data.user.getIdToken();
         })
-        .then(token => {
+        .then(uToken => {
             //create user credentials
-            uToken = token;
+            token = uToken;
             const userCredentials = {
                 handle: newUser.handle,
                 email: newUser.email,
@@ -138,7 +171,7 @@ app.post('/signup', (request, response) => {
             return db.doc(`/users/${newUser.handle}`).set(userCredentials);
         })
         .then(() => {
-            return response.status(201).json({ uToken })
+            return response.status(201).json({ token })
         })
         .catch(error => {
             console.error(error);
@@ -158,8 +191,10 @@ app.post('/login', (request, response) => {
 
     let errors = {}
     if (isEmpty(user.email)) errors.email = 'Must not be empty';
+    else if (!isEmail(user.email)) errors.email = 'Must be a valid email address';
     if (isEmpty(user.password)) errors.password = 'Must not be empty';
-
+    console.log(errors, user, request.body);
+    
     if (Object.keys(errors) > 0) {
         return response.status(400).json(errors);
     }
