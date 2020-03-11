@@ -25,6 +25,7 @@ module.exports = (request, response, next) => {
         .then(data => {
             //Add the handle in request
             request.user.handle = data.docs[0].data().handle;
+            request.user.imageUrl = data.docs[0].data().imageUrl;
             return next();
         })
         .catch(error => {
