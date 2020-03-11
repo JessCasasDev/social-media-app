@@ -23,7 +23,7 @@ exports.signup = (request, response) => {
     const noImage = 'unnamed.png';
 
     let token, userId;
-    //TODO validate data
+    
     db.doc(`/users/${newUser.handle}`).get()
         .then(doc => {
             //Validate if user exists, return error if or create a new one  
