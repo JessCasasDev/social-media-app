@@ -2,7 +2,6 @@
 const functions = require('firebase-functions');
 const { db } = require('./util/admin');
 const app = require('express')();
-const { getAllScreams, postScream } = require('./handlers/screams');
 const {
     getAllScreams,
     postScream,
@@ -17,7 +16,9 @@ const {
     login,
     addUserDetails,
     getAuthenticatedUser,
-    uploadImage
+    uploadImage,
+    getUserDetails,
+    markNotificationRead
 } = require('./handlers/users');
 const FBAuth = require('./util/fbAuth')
 
@@ -27,6 +28,10 @@ app.post('/login', login);
 app.post('/user/image', FBAuth, uploadImage);
 app.post('/user', FBAuth, addUserDetails);
 app.get('/user', FBAuth, getAuthenticatedUser);
+app.get('/user/:handle', getUserDetails);
+
+
+app.post('/notifications', FBAuth, markNotificationRead);
 
 
 //Screams Routes
@@ -42,7 +47,7 @@ exports.api = functions.https.onRequest(app);
 
 exports.createNotificationOnLike = functions.firestore.document('likes/{id}')
     .onCreate((snapshot) => { //creates a notification when a new like is added
-       db.doc(`/screams/${snapshot.data().screamId}`).get()
+        db.doc(`/screams/${snapshot.data().screamId}`).get()
             .then(doc => {
                 if (doc.exists) {
                     return db.doc(`/notifications/${snapshot.id}`).set({
