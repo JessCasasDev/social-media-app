@@ -81,7 +81,7 @@ exports.getScream = (request, response) => {
 //Create a comment on Post
 exports.commentOnScream = (request, response) => {
     if (request.body.body.trim() === '') {
-        return response.status(400).json({ error: 'Must not be empty' })
+        return response.status(400).json({ comment: 'Must not be empty' })
     }
 
     const newComment = {

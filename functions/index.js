@@ -21,7 +21,7 @@ const {
     markNotificationRead
 } = require('./handlers/users');
 const FBAuth = require('./util/fbAuth')
-    
+
 //Users routes
 app.post('/signup', signup);
 app.post('/login', login);
@@ -47,9 +47,9 @@ exports.api = functions.https.onRequest(app);
 
 exports.createNotificationOnLike = functions.firestore.document('likes/{id}')
     .onCreate((snapshot) => { //creates a notification when a new like is added
-        db.doc(`/screams/${snapshot.data().screamId}`).get()
+        return db.doc(`/screams/${snapshot.data().screamId}`).get()
             .then(doc => {
-                if (doc.exists) {
+                if (doc.exists && doc.data().userHandle !== snapshot.data().userHandle) {
                     return db.doc(`/notifications/${snapshot.id}`).set({
                         createdAt: new Date().toISOString(),
                         recipient: doc.data().userHandle,
@@ -60,24 +60,16 @@ exports.createNotificationOnLike = functions.firestore.document('likes/{id}')
                     });
                 }
             })
-            .then(() => {
-                return;
-            })
             .catch((error) => {
                 console.error(error);
-                return;
             });
     });
 
 exports.deleteNotificationOnUnlike = functions.firestore.document('likes/{id}')
     .onDelete((snapshot) => { //creates a notification when a new like is added
-        db.doc(`/notifications/${snapshot.id}`).delete()
-            .then(() => {
-                return;
-            })
+        return db.doc(`/notifications/${snapshot.id}`).delete()
             .catch((error) => {
                 console.error(error);
-                return;
             });
     });
 
@@ -85,9 +77,9 @@ exports.deleteNotificationOnUnlike = functions.firestore.document('likes/{id}')
 
 exports.createNotificationOnComment = functions.firestore.document('comments/{id}')
     .onCreate((snapshot) => { //creates a notification when a new like is added
-        db.doc(`/screams/${snapshot.data().screamId}`).get()
+        return db.doc(`/screams/${snapshot.data().screamId}`).get()
             .then(doc => {
-                if (doc.exists) {
+                if (doc.exists && doc.data().userHandle !== snapshot.data().userHandle) {
                     return db.doc(`/notifications/${snapshot.id}`).set({
                         createdAt: new Date().toISOString(),
                         recipient: doc.data().userHandle,
@@ -98,12 +90,8 @@ exports.createNotificationOnComment = functions.firestore.document('comments/{id
                     });
                 }
             })
-            .then(() => {
-                return;
-            })
             .catch((error) => {
                 console.error(error);
-                return;
             });
     });
 
