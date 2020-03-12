@@ -21,7 +21,7 @@ const {
     markNotificationRead
 } = require('./handlers/users');
 const FBAuth = require('./util/fbAuth')
-
+    
 //Users routes
 app.post('/signup', signup);
 app.post('/login', login);

@@ -211,7 +211,7 @@ exports.getUserDetails = (request, response) => {
         .then(data => {
             userData.screams = [];
             data.forEach(doc => {
-                userData.push({
+                userData.screams.push({
                     ...doc.data(),
                     screamId: doc.id,
                 })
