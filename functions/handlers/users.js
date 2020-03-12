@@ -23,7 +23,7 @@ exports.signup = (request, response) => {
     const noImage = 'unnamed.png';
 
     let token, userId;
-    //TODO validate data
+
     db.doc(`/users/${newUser.handle}`).get()
         .then(doc => {
             //Validate if user exists, return error if or create a new one  
@@ -59,7 +59,7 @@ exports.signup = (request, response) => {
             if (error.code === "auth/email-already-in-use") {
                 return response.status(400).json({ email: 'Email is already in use' });
             }
-            return response.status(500).json({ error: error.code });
+            return response.status(500).json({ general: 'Something went wrong, please try again.' });
         });
 }
 
@@ -84,13 +84,8 @@ exports.login = (request, response) => {
         })
         .catch(error => {
             console.error(error);
-            if (error.code === "auth/wrong-password") {
-                //Unauthorized!
-                return response.status(403).json({ general: 'Wrong credential. Please try again' });
-            }
-
-            return response.status(500).json({ error: error.code });
-        })
+            return response.status(403).json({ general: 'Wrong credentials. Please try again' });
+        });
 }
 
 let imageFileName, imageToBeUploaded = {};
@@ -173,10 +168,73 @@ exports.getAuthenticatedUser = (request, response) => {
             data.forEach(doc => {
                 userData.likes.push(doc.data());
             });
+            return db.collection(`notifications`).where('recipient', '==', request.user.handle)
+                .orderBy('createdAt', 'desc').limit(10).get();
+        })
+        .then(data => {
+            userData.notifications = [];
+            data.forEach(doc => {
+                userData.notifications.push({
+                    ...doc.data(),
+                    notificationId: doc.id,
+                });
+            });
             return response.json(userData);
         })
         .catch(error => {
             console.error(error);
             return response.response(500).json({ error: error.code });
+        })
+}
+
+
+/* get user details from no-auth request */
+exports.getUserDetails = (request, response) => {
+    let userData = {}
+    db.doc(`/users/${request.params.handle}`).get()
+        .then(doc => {
+            if (doc.exists) {
+                userData.user = doc.data();
+                return db.collection('screams').where('userHandle', '==', request.params.handle)
+                    .orderBy('createdAt', 'desc')
+                    .get();
+            }
+            else {
+                return response.status(404).json({ error: 'User not found' });
+            }
+        })
+        .then(data => {
+            userData.screams = [];
+            data.forEach(doc => {
+                userData.screams.push({
+                    ...doc.data(),
+                    screamId: doc.id,
+                })
+            });
+            return response.json(userData)
+        })
+        .catch(error => {
+            console.error(error);
+            return response.status(500).json({ error: error.code });
+        })
+}
+
+
+exports.markNotificationRead = (request, response) => {
+    let batch = db.batch();
+    //Array of ids
+    request.body.forEach(notificationId => {
+        const notification = db.doc(`/notifications/${notificationId}`);
+        //User read the notification
+        batch.update(notification, { read: true });
+    });
+
+    batch.commit()
+        .then(() => {
+            return response.json({ message: 'Notifications marked read' })
+        })
+        .catch(error => {
+            console.error(error);
+            return json.status(500).json({ error: error.code })
         })
 }

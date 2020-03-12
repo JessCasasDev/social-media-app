@@ -1,5 +1,6 @@
 {
   "projects": {
-    "staging": "social-media-e5acf"
+    "staging": "social-media-e5acf",
+    "default": "social-media-e5acf"
   }
 }
