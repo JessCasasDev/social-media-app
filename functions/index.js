@@ -1,7 +1,12 @@
 //imports
 const functions = require('firebase-functions');
 const { db } = require('./util/admin');
+const cors = require('cors');
+
 const app = require('express')();
+
+app.use(cors())
+
 const {
     getAllScreams,
     postScream,
@@ -20,6 +25,7 @@ const {
     getUserDetails,
     markNotificationRead
 } = require('./handlers/users');
+
 const FBAuth = require('./util/fbAuth')
 
 //Users routes
